@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Crew Schedule Manager</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #0a0e14;
+    --panel:     #111620;
+    --border:    #1e2a3a;
+    --accent:    #00aaff;
+    --accent2:   #ff6b35;
+    --text:      #c8d8e8;
+    --muted:     #4a6080;
+    --danger:    #ff3b3b;
+    --success:   #00cc88;
+    --mono:      'Share Tech Mono', monospace;
+    --sans:      'Barlow', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-weight: 300;
+    min-height: 100vh;
+    padding: 0;
+  }
+
+  /* Scanline overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.03) 2px,
+      rgba(0,0,0,0.03) 4px
+    );
+    pointer-events: none;
+    z-index: 100;
+  }
+
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 24px 40px;
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    background: linear-gradient(180deg, #0d1520 0%, transparent 100%);
+  }
+
+  header h1 {
+    font-family: var(--mono);
+    font-size: 18px;
+    color: var(--accent);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+
+  header .subtitle {
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .status-bar {
+    padding: 10px 40px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .status-bar .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--muted);
+    animation: pulse 2s infinite;
+  }
+
+  .status-bar.loading .dot { background: var(--accent); }
+  .status-bar.ok .dot      { background: var(--success); animation: none; }
+  .status-bar.error .dot   { background: var(--danger);  animation: none; }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.3; }
+  }
+
+  main {
+    padding: 32px 40px;
+    max-width: 900px;
+  }
+
+  .section-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  thead tr {
+    border-bottom: 1px solid var(--border);
+  }
+
+  thead th {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-align: left;
+    padding: 8px 12px;
+    font-weight: 400;
+  }
+
+  tbody tr {
+    border-bottom: 1px solid rgba(30,42,58,0.5);
+    transition: background 0.15s;
+  }
+
+  tbody tr:hover {
+    background: rgba(0,170,255,0.04);
+  }
+
+  tbody td {
+    padding: 14px 12px;
+    font-size: 14px;
+    vertical-align: middle;
+  }
+
+  .pairing-num {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--accent);
+    letter-spacing: 0.05em;
+  }
+
+  .route {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--text);
+    letter-spacing: 0.05em;
+  }
+
+  .route .arrow {
+    color: var(--muted);
+    margin: 0 4px;
+  }
+
+  .date-range {
+    font-size: 12px;
+    color: var(--muted);
+    font-family: var(--mono);
+  }
+
+  .duty {
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .btn-remove {
+    background: transparent;
+    border: 1px solid var(--danger);
+    color: var(--danger);
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 5px 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+    border-radius: 2px;
+  }
+
+  .btn-remove:hover:not(:disabled) {
+    background: var(--danger);
+    color: #fff;
+  }
+
+  .btn-remove:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+
+  .empty {
+    padding: 48px 0;
+    text-align: center;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 13px;
+    letter-spacing: 0.1em;
+  }
+
+  .toast {
+    position: fixed;
+    bottom: 32px;
+    right: 40px;
+    padding: 12px 20px;
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    border-radius: 3px;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: all 0.2s;
+    z-index: 200;
+  }
+
+  .toast.show {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .toast.success { background: var(--success); color: #000; }
+  .toast.error   { background: var(--danger);  color: #fff; }
+
+  .corner-decor {
+    position: fixed;
+    bottom: 0;
+    right: 0;
+    width: 200px;
+    height: 200px;
+    opacity: 0.03;
+    background: 
+      linear-gradient(45deg, transparent 48%, var(--accent) 48%, var(--accent) 52%, transparent 52%),
+      linear-gradient(-45deg, transparent 48%, var(--accent) 48%, var(--accent) 52%, transparent 52%);
+    background-size: 20px 20px;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>&#9992; Crew Schedule</h1>
+  <span class="subtitle">Calendar Manager</span>
+</header>
+
+<div class="status-bar loading" id="statusBar">
+  <div class="dot"></div>
+  <span id="statusText">Fetching schedule...</span>
+</div>
+
+<main>
+  <div class="section-label">Upcoming Pairings</div>
+  <table id="pairingTable">
+    <thead>
+      <tr>
+        <th>Pairing</th>
+        <th>Date</th>
+        <th>Route</th>
+        <th>Duty</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="pairingBody">
+      <tr><td colspan="5" class="empty">Loading...</td></tr>
+    </tbody>
+  </table>
+</main>
+
+<div class="toast" id="toast"></div>
+<div class="corner-decor"></div>
+
+<script type="module">
+// ---------------------------------------------------------------------------
+// Config — loaded from config.js
+// ---------------------------------------------------------------------------
+import { DO_FUNCTION_URL, ICS_URL } from './config.js';
+
+// ---------------------------------------------------------------------------
+// ICS parser — extract pairings from raw ICS text
+// ---------------------------------------------------------------------------
+function parseIcs(text) {
+  const events = [];
+  const blocks = text.match(/BEGIN:VEVENT[\s\S]*?END:VEVENT/g) || [];
+
+  for (const block of blocks) {
+    const get = (key) => {
+      const m = block.match(new RegExp(`^${key}:(.+)$`, 'm'));
+      return m ? m[1].trim() : '';
+    };
+
+    const uid      = get('UID');
+    const summary  = get('SUMMARY').replace(/\\,/g, ',').replace(/\\n/g, '\n');
+    const dtstart  = get('DTSTART');
+    const dtend    = get('DTEND');
+    const desc     = get('DESCRIPTION').replace(/\\n/g, '\n');
+
+    if (!uid || !dtstart) continue;
+
+    // Parse floating ICS date: YYYYMMDDTHHmmss
+    const parseIcsDt = s => {
+      if (!s || s.length < 8) return null;
+      const yr = +s.slice(0,4), mo = +s.slice(4,6)-1, dy = +s.slice(6,8);
+      const hr = s.length >= 13 ? +s.slice(9,11) : 0;
+      const mi = s.length >= 15 ? +s.slice(11,13) : 0;
+      return new Date(yr, mo, dy, hr, mi);
+    };
+
+    const start = parseIcsDt(dtstart);
+    const end   = parseIcsDt(dtend);
+    if (!start) continue;
+
+    // Skip past events
+    if (end && end < new Date()) continue;
+
+    // Extract pairing number from UID: C9010-20260502@...
+    const pairingM = uid.match(/^([^-]+)-/);
+    const pairing  = pairingM ? pairingM[1] : uid;
+
+    // Extract duty time from description
+    const dutyM = desc.match(/Duty:\s*([\d:]+)/);
+    const duty  = dutyM ? dutyM[1] : '';
+
+    events.push({ uid, pairing, summary, start, end, duty });
+  }
+
+  // Sort by start date, then dedupe to one row per pairing (show first leg date)
+  events.sort((a, b) => a.start - b.start);
+
+  // Group by pairing — keep the earliest start per pairing
+  const seen = new Map();
+  for (const ev of events) {
+    if (!seen.has(ev.pairing)) seen.set(ev.pairing, ev);
+  }
+
+  return [...seen.values()];
+}
+
+// ---------------------------------------------------------------------------
+// Render
+// ---------------------------------------------------------------------------
+function fmtDate(dt) {
+  if (!dt) return '—';
+  return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function renderTable(pairings) {
+  const tbody = document.getElementById('pairingBody');
+  if (!pairings.length) {
+    tbody.innerHTML = '<tr><td colspan="5" class="empty">No upcoming pairings</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = pairings.map(p => {
+    // Parse route from summary "C9010: CVG → RFD"
+    const routeM = p.summary.match(/:\s*(.+)/);
+    const route  = routeM ? routeM[1] : p.summary;
+    const routeHtml = route.replace('→', '<span class="arrow">→</span>');
+
+    return `<tr data-uid="${p.uid}">
+      <td><span class="pairing-num">${p.pairing}</span></td>
+      <td><span class="date-range">${fmtDate(p.start)}</span></td>
+      <td><span class="route">${routeHtml}</span></td>
+      <td><span class="duty">${p.duty || '—'}</span></td>
+      <td>
+        <button class="btn-remove" onclick="removePairing('${p.uid}', '${p.pairing}', this)">
+          Remove
+        </button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ---------------------------------------------------------------------------
+// Remove pairing
+// ---------------------------------------------------------------------------
+async function removePairing(uid, pairingNo, btn) {
+  btn.disabled = true;
+  btn.textContent = '...';
+
+  setStatus('loading', `Removing ${pairingNo}...`);
+
+  try {
+    const resp = await fetch(DO_FUNCTION_URL, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ action: 'remove', uid }),
+    });
+
+    const data = await resp.json();
+    if (!resp.ok || !data.ok) throw new Error(data.error || `HTTP ${resp.status}`);
+
+    // Remove row from table
+    const row = document.querySelector(`tr[data-uid="${uid}"]`);
+    if (row) {
+      row.style.transition = 'opacity 0.3s';
+      row.style.opacity = '0';
+      setTimeout(() => row.remove(), 300);
+    }
+
+    setStatus('ok', `${pairingNo} removed — ${data.total} pairings remaining`);
+    showToast(`${pairingNo} removed`, 'success');
+
+  } catch (err) {
+    btn.disabled = false;
+    btn.textContent = 'Remove';
+    setStatus('error', `Error: ${err.message}`);
+    showToast(err.message, 'error');
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Status + toast helpers
+// ---------------------------------------------------------------------------
+function setStatus(type, msg) {
+  const bar  = document.getElementById('statusBar');
+  const text = document.getElementById('statusText');
+  bar.className  = `status-bar ${type}`;
+  text.textContent = msg;
+}
+
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent  = msg;
+  t.className    = `toast ${type} show`;
+  setTimeout(() => t.className = `toast ${type}`, 3000);
+}
+
+// ---------------------------------------------------------------------------
+// Boot
+// ---------------------------------------------------------------------------
+(async () => {
+  setStatus('loading', 'Fetching schedule...');
+  try {
+    const resp = await fetch(ICS_URL + '?t=' + Date.now()); // cache-bust
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const text     = await resp.text();
+    const pairings = parseIcs(text);
+    renderTable(pairings);
+    setStatus('ok', `${pairings.length} upcoming pairing${pairings.length !== 1 ? 's' : ''}`);
+  } catch (err) {
+    setStatus('error', `Failed to load schedule: ${err.message}`);
+    document.getElementById('pairingBody').innerHTML =
+      `<tr><td colspan="5" class="empty">Could not load schedule.ics</td></tr>`;
+  }
+})();
+</script>
+</body>
+</html>
